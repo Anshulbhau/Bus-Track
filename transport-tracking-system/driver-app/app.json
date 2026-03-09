@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "CityTransit Driver",
+    "slug": "city-transit-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "citytransitdriver",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.citytransit.driver",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to track your bus route.",
+        "NSLocationAlwaysUsageDescription": "This app needs background location access to share your bus position with passengers.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs location access to track your bus route for passengers."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.citytransit.driver",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow CityTransit Driver to use your location to track your bus route."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "sdkVersion": "54.0.0"
+  }
+}
