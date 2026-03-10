@@ -1,11 +1,57 @@
+import { useState, useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import StatCard from '../components/StatCard'
-import { useDashboardStats, useTrips } from '../hooks/useSupabase'
+import { useDashboardStats, useTrips, useBuses } from '../hooks/useSupabase'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+
+type LocationMap = Record<string, { lat: number; lng: number; speed: number | null; recorded_at: string }>
+
+function getMapCenter() {
+  try {
+    const saved = localStorage.getItem('transit_map_center')
+    if (saved) return JSON.parse(saved) as { lat: number; lng: number; zoom: number }
+  } catch { /* ignore */ }
+  return { lat: 32.7266, lng: 74.8570, zoom: 12 }
+}
 
 export default function Dashboard() {
   const { stats, loading: statsLoading } = useDashboardStats()
   const { data: trips, loading: tripsLoading } = useTrips()
+  const { data: buses } = useBuses()
   const navigate = useNavigate()
+  const [locations, setLocations] = useState<LocationMap>({})
+  const mapCenter = getMapCenter()
+
+  useEffect(() => {
+    supabase
+      .from('bus_locations')
+      .select('bus_id, latitude, longitude, speed, recorded_at')
+      .order('recorded_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data) return
+        const map: LocationMap = {}
+        for (const loc of data) {
+          if (!map[loc.bus_id]) {
+            map[loc.bus_id] = { lat: loc.latitude, lng: loc.longitude, speed: loc.speed, recorded_at: loc.recorded_at }
+          }
+        }
+        setLocations(map)
+      })
+
+    const channel = supabase
+      .channel('dashboard_bus_locations')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bus_locations' }, (payload: any) => {
+        const loc = payload.new
+        setLocations(prev => ({
+          ...prev,
+          [loc.bus_id]: { lat: loc.latitude, lng: loc.longitude, speed: loc.speed, recorded_at: loc.recorded_at },
+        }))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   return (
     <>
@@ -59,15 +105,45 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="glass-panel__body" style={{ padding: 0 }}>
-            <div className="map-container">
-              <div className="map-container__grid"></div>
-              <div className="map-dot" style={{ top: '30%', left: '25%' }}></div>
-              <div className="map-dot" style={{ top: '55%', left: '60%' }}></div>
-              <div className="map-dot" style={{ top: '40%', left: '75%' }}></div>
-              <div className="map-container__icon">🗺️</div>
-              <div className="map-container__text">
-                Connect a map provider (Mapbox / Google Maps) to see live fleet positions
-              </div>
+            <div style={{ height: 340, position: 'relative' }}>
+              <MapContainer
+                center={[mapCenter.lat, mapCenter.lng]}
+                zoom={mapCenter.zoom}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {buses.map(bus => {
+                  const loc = locations[bus.id]
+                  if (!loc) return null
+                  return (
+                    <Marker key={bus.id} position={[loc.lat, loc.lng]}>
+                      <Popup>
+                        <strong>🚌 {bus.bus_number}</strong>
+                        <div style={{ fontSize: 12, marginTop: 4, color: '#555' }}>
+                          <div>Driver: {(bus as any).profiles?.name ?? 'Unassigned'}</div>
+                          <div>Speed: {loc.speed != null ? `${loc.speed} km/h` : 'N/A'}</div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )
+                })}
+              </MapContainer>
+              {Object.keys(locations).length === 0 && (
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(11,15,26,0.7)', zIndex: 500, gap: 8, pointerEvents: 'none',
+                }}>
+                  <span style={{ fontSize: '2rem' }}>📡</span>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', textAlign: 'center' }}>
+                    No buses broadcasting yet
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -80,7 +80,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendEmailCode = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: 'citytransitdriver://auth/callback',
+      },
     })
     return { error: error?.message ?? null }
   }

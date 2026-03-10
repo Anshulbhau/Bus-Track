@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: email.trim().toLowerCase(),
       password,
       options: {
-        emailRedirectTo: undefined,
+        emailRedirectTo: 'citytransituser://auth/callback',
       },
     })
     return { error: error?.message ?? null }
