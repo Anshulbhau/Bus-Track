@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker } from '
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useBuses } from '../hooks/useSupabase'
-import type { Trip, RouteStop, Stop } from '../types/database'
+import type { Trip, RouteStop, Stop, Route } from '../types/database'
 
 type LocationMap = Record<string, {
   lat: number
@@ -11,6 +11,10 @@ type LocationMap = Record<string, {
   speed: number | null
   recorded_at: string
 }>
+
+type RouteWithStops = Route & {
+  route_stops: (RouteStop & { stops: Stop })[]
+}
 
 type TripData = Trip & {
   routes: {
@@ -45,7 +49,7 @@ export default function LiveMap() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [allStops, setAllStops] = useState<Stop[]>([])
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
-  const [allRoutes, setAllRoutes] = useState<any[]>([])
+  const [allRoutes, setAllRoutes] = useState<RouteWithStops[]>([])
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [osrmRouteCache, setOsrmRouteCache] = useState<Record<string, [number, number][]>>({})
   const osrmCacheRef = useRef<Record<string, [number, number][]>>({})
@@ -82,7 +86,7 @@ export default function LiveMap() {
 
     if (trips) {
       // Sort route_stops for each trip and handle potential array structure
-      const processed = (trips as any[]).map(trip => {
+      const processed: TripData[] = (trips as any[]).map(trip => {
         const route = Array.isArray(trip.routes) ? trip.routes[0] : trip.routes
         return {
           ...trip,
@@ -110,11 +114,11 @@ export default function LiveMap() {
         .select('*, route_stops(*, stops(*))')
       if (data) {
         // Sort route_stops by stop_order for each route
-        const processed = data.map((route: any) => ({
+        const processed = (data as any[]).map((route) => ({
           ...route,
           route_stops: (route.route_stops || []).sort((a: any, b: any) => a.stop_order - b.stop_order)
         }))
-        setAllRoutes(processed)
+        setAllRoutes(processed as RouteWithStops[])
       }
     }
     fetchAllStops()
@@ -145,7 +149,7 @@ export default function LiveMap() {
       // Load OSRM for active trips (direction-aware)
       for (const trip of activeTrips) {
         if (cancelled) return
-        const isReturn = (trip as any).direction === 'return'
+        const isReturn = trip.direction === 'return'
         const cacheKey = `trip-${trip.id}-${isReturn ? 'return' : 'onward'}`
         if (cache[cacheKey]) continue
         const waypoints = getDirectionAwarePositions(trip)
@@ -179,6 +183,7 @@ export default function LiveMap() {
         .from('vehicle_locations')
         .select('vehicle_id, latitude, longitude, speed, recorded_at')
         .order('recorded_at', { ascending: false })
+        .limit(100) // Optimization: Only fetch recent points to avoid massive data load
 
       if (data) {
         const map: LocationMap = {}
@@ -228,9 +233,9 @@ export default function LiveMap() {
     if (!selectedStopId) return new Set<string>()
     const ids = new Set<string>()
     activeTrips.forEach(trip => {
-      const route = Array.isArray(trip.routes) ? trip.routes[0] : trip.routes
+      const route = trip.routes
       if (!route?.route_stops) return
-      const found = route.route_stops.some(rs => rs.stops?.id === selectedStopId)
+      const found = route.route_stops.some((rs: any) => rs.stops?.id === selectedStopId)
       if (found) ids.add(trip.id)
     })
     return ids
@@ -238,10 +243,10 @@ export default function LiveMap() {
 
   // Helper: for a trip, get direction-aware stops (reversed for return trips)
   function getDirectionAwareStops(trip: TripData) {
-    const route = Array.isArray(trip.routes) ? trip.routes[0] : trip.routes
+    const route = trip.routes
     if (!route?.route_stops) return []
     const stops = [...route.route_stops]
-    if ((trip as any).direction === 'return') {
+    if (trip.direction === 'return') {
       stops.reverse()
     }
     return stops
@@ -257,8 +262,8 @@ export default function LiveMap() {
 
   // Helper: get start/end location labels based on direction
   function getDirectionLabels(trip: TripData) {
-    const route = Array.isArray(trip.routes) ? trip.routes[0] : trip.routes
-    const isReturn = (trip as any).direction === 'return'
+    const route = trip.routes
+    const isReturn = trip.direction === 'return'
     return {
       toLabel: isReturn ? route?.start_location : route?.end_location,
       directionBadge: isReturn ? '↩ Return' : '→ Onward',
@@ -266,8 +271,8 @@ export default function LiveMap() {
     }
   }
 
-  const activeBuses = buses.filter(b => locations[b.id])
-  const selectedTrip = activeTrips.find(t => t.id === selectedTripId) || (activeTrips.length > 0 ? activeTrips[0] : null)
+  const selectedTrip = activeTrips.find(t => t.id === selectedTripId)
+  const activeTripToDisplay = selectedTrip || (!selectedRouteId && activeTrips.length > 0 ? activeTrips[0] : null)
   const selectedRoute = allRoutes.find(r => r.id === selectedRouteId)
   const totalLocations = Object.keys(locations).length
 
@@ -377,7 +382,7 @@ export default function LiveMap() {
 
               // Check if this route is part of any active trip
               const hasActiveTrip = activeTrips.some(t => {
-                const r = Array.isArray(t.routes) ? t.routes[0] : t.routes
+                const r = t.routes
                 return r?.route_name === route.route_name
               })
               if (hasActiveTrip) return null
@@ -403,14 +408,14 @@ export default function LiveMap() {
 
             {/* Render Route Polylines for active trips using OSRM road geometry */}
             {activeTrips.map(trip => {
-              const isReturn = (trip as any).direction === 'return'
+              const isReturn = trip.direction === 'return'
               const cacheKey = `trip-${trip.id}-${isReturn ? 'return' : 'onward'}`
               const positions = osrmRouteCache[cacheKey] || getDirectionAwarePositions(trip)
               if (positions.length < 2) return null
               
               const isSelected = selectedTripId === trip.id
               const isHighlighted = highlightedRouteIds.has(trip.id)
-              const dimmed = selectedStopId && !isHighlighted
+              const dimmed = (selectedStopId || selectedRouteId) && !isHighlighted && !isSelected
 
               return (
                 <Polyline
@@ -448,8 +453,8 @@ export default function LiveMap() {
               const isSelectedStop = selectedStopId === stop.id
               const isOnHighlightedRoute = highlightedRouteIds.size > 0 && activeTrips.some(trip => {
                 if (!highlightedRouteIds.has(trip.id)) return false
-                const route = Array.isArray(trip.routes) ? trip.routes[0] : trip.routes
-                return route?.route_stops?.some(rs => rs.stops?.id === stop.id)
+                const route = trip.routes
+                return route?.route_stops?.some((rs: any) => rs.stops?.id === stop.id)
               })
 
               return (
@@ -486,7 +491,7 @@ export default function LiveMap() {
             {activeTrips.map(trip => {
               const dirStops = getDirectionAwareStops(trip)
               if (!dirStops.length) return null
-              const isReturn = (trip as any).direction === 'return'
+              const isReturn = trip.direction === 'return'
 
               return dirStops.map((rs, idx) => {
                 const stop = rs.stops
@@ -562,7 +567,7 @@ export default function LiveMap() {
                       <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6, color: '#444' }}>
                         <div>Driver: <strong>{(bus as any).profiles?.name ?? 'Unassigned'}</strong></div>
                         <div>Route: <strong>{trip?.routes?.route_name ?? 'No active trip'}</strong></div>
-                        {trip && <div>Direction: <strong>{(trip as any).direction === 'return' ? '↩ Return' : '→ Onward'}</strong></div>}
+                        {trip && <div>Direction: <strong>{trip.direction === 'return' ? '↩ Return' : '→ Onward'}</strong></div>}
                         <div>Speed: <strong>{loc.speed != null ? `${loc.speed} km/h` : 'N/A'}</strong></div>
                         <div>Updated: {new Date(loc.recorded_at).toLocaleTimeString()}</div>
                       </div>
@@ -616,7 +621,7 @@ export default function LiveMap() {
       </div>
 
       {/* Route details panel for NON-ACTIVE routes */}
-      {selectedRoute && !selectedTrip && (() => {
+      {selectedRoute && !selectedTripId && (() => {
         const stops = (selectedRoute.route_stops || []) as any[]
         return (
           <div className="trip-details-grid">
@@ -707,11 +712,11 @@ export default function LiveMap() {
       })()}
 
       {/* Trip details panel for ACTIVE trips */}
-      {selectedTrip && (() => {
-        const dirStops = getDirectionAwareStops(selectedTrip)
-        const { toLabel, directionBadge, isReturn } = getDirectionLabels(selectedTrip)
-        const nearestStopIdx = findNearestStopIndex(selectedTrip)
-        const busLoc = locations[selectedTrip.vehicle_id]
+      {activeTripToDisplay && (() => {
+        const dirStops = getDirectionAwareStops(activeTripToDisplay)
+        const { toLabel, directionBadge, isReturn } = getDirectionLabels(activeTripToDisplay)
+        const nearestStopIdx = findNearestStopIndex(activeTripToDisplay)
+        const busLoc = locations[activeTripToDisplay.vehicle_id]
         
         return (
           <div className="trip-details-grid">
@@ -729,13 +734,13 @@ export default function LiveMap() {
                       {directionBadge}
                     </span>
                   </div>
-                  <h3 className="glass-panel__title">{selectedTrip.routes.route_name}</h3>
+                  <h3 className="glass-panel__title">{activeTripToDisplay.routes.route_name}</h3>
                   <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
                     To {toLabel}
                   </p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800 }}>{buses.find(b => b.id === selectedTrip.vehicle_id)?.vehicle_number}</div>
+                  <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800 }}>{buses.find(b => b.id === activeTripToDisplay.vehicle_id)?.vehicle_number}</div>
                   <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Bus ID</div>
                 </div>
               </div>
@@ -832,7 +837,7 @@ export default function LiveMap() {
                       const bus = buses.find(b => b.id === trip.vehicle_id)
                       const loc = locations[trip.vehicle_id]
                       const isSel = selectedTripId === trip.id
-                      const tripDir = (trip as any).direction === 'return' ? '↩' : '→'
+                      const tripDir = trip.direction === 'return' ? '↩' : '→'
                       return (
                         <tr 
                           key={trip.id} 
@@ -843,11 +848,11 @@ export default function LiveMap() {
                           <td>{trip.routes.route_name}</td>
                           <td>
                             <span style={{
-                              fontSize: 'var(--font-size-xs)', fontWeight: 600,
-                              color: (trip as any).direction === 'return' ? '#ef4444' : '#22c55e',
-                            }}>
-                              {tripDir}
-                            </span>
+                                fontSize: 'var(--font-size-xs)', fontWeight: 600,
+                                color: trip.direction === 'return' ? '#ef4444' : '#22c55e',
+                              }}>
+                                {tripDir}
+                              </span>
                           </td>
                           <td>{loc?.speed != null ? `${loc.speed} km/h` : '—'}</td>
                           <td><span className="status-badge status-badge--running"><span className="status-badge__dot" />Live</span></td>
