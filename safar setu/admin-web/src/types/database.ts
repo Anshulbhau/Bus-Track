@@ -58,6 +58,7 @@ export type Trip = {
   start_time: string
   end_time: string | null
   status: 'scheduled' | 'running' | 'completed'
+  direction: 'onward' | 'return'
   // joined
   vehicles?: Vehicle
   routes?: Route
