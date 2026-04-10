@@ -51,11 +51,11 @@ export async function deleteDriver(id: string) {
 }
 
 // ── Trips ──
-export async function insertTrip(data: { vehicle_id: string; route_id: string; driver_id: string; start_time: string; status: string }) {
+export async function insertTrip(data: { vehicle_id: string; route_id: string; driver_id: string; start_time: string; status: string; direction?: string }) {
   return supabase.from('trips').insert(data).select().single()
 }
 
-export async function updateTrip(id: string, data: Partial<{ vehicle_id: string; route_id: string; driver_id: string; start_time: string; end_time: string; status: string }>) {
+export async function updateTrip(id: string, data: Partial<{ vehicle_id: string; route_id: string; driver_id: string; start_time: string; end_time: string; status: string; direction: string }>) {
   return supabase.from('trips').update(data).eq('id', id).select().single()
 }
 

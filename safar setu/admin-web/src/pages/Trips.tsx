@@ -11,7 +11,7 @@ export default function Trips() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled' })
+  const [form, setForm] = useState({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled', direction: 'onward' })
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -23,7 +23,7 @@ export default function Trips() {
 
   function openAdd() {
     setEditId(null)
-    setForm({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled' })
+    setForm({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled', direction: 'onward' })
     setModalOpen(true)
   }
 
@@ -35,6 +35,7 @@ export default function Trips() {
       driver_id: trip.driver_id,
       start_time: trip.start_time?.slice(0, 16) ?? '',
       status: trip.status,
+      direction: trip.direction || 'onward',
     })
     setModalOpen(true)
   }
@@ -48,6 +49,7 @@ export default function Trips() {
       driver_id: form.driver_id,
       start_time: form.start_time,
       status: form.status,
+      direction: form.direction,
     }
     const { error } = editId
       ? await updateTrip(editId, payload)
@@ -80,6 +82,23 @@ export default function Trips() {
     const { error } = await updateTrip(id, { status: 'running' })
     if (error) showToast(error.message, 'error')
     else { showToast('Trip started!'); refetch() }
+  }
+
+  async function startReturnJourney(trip: any) {
+    // Complete the current trip first
+    await updateTrip(trip.id, { status: 'completed', end_time: new Date().toISOString() })
+    // Create a new return trip with reversed direction
+    const newDirection = (trip.direction || 'onward') === 'onward' ? 'return' : 'onward'
+    const { error } = await insertTrip({
+      vehicle_id: trip.vehicle_id,
+      route_id: trip.route_id,
+      driver_id: trip.driver_id,
+      start_time: new Date().toISOString(),
+      status: 'running',
+      direction: newDirection,
+    } as any)
+    if (error) showToast(error.message, 'error')
+    else { showToast(`Return journey started! (${newDirection === 'return' ? '↩ Return' : '→ Onward'})`); refetch() }
   }
 
   const running = trips.filter((t) => t.status === 'running').length
@@ -151,6 +170,7 @@ export default function Trips() {
                 <th>Bus</th>
                 <th>Route</th>
                 <th>Driver</th>
+                <th>Direction</th>
                 <th>Start Time</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -158,12 +178,23 @@ export default function Trips() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No trips found</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No trips found</td></tr>
               ) : filtered.map((trip) => (
                 <tr key={trip.id}>
                   <td>{trip.vehicles?.vehicle_number ?? '—'}</td>
                   <td>{trip.routes?.route_name ?? '—'}</td>
                   <td>{trip.profiles?.name ?? '—'}</td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '3px 10px', borderRadius: 12, fontSize: 'var(--font-size-xs)',
+                      fontWeight: 600,
+                      background: (trip as any).direction === 'return' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                      color: (trip as any).direction === 'return' ? '#ef4444' : '#22c55e',
+                    }}>
+                      {(trip as any).direction === 'return' ? '↩ Return' : '→ Onward'}
+                    </span>
+                  </td>
                   <td>{new Date(trip.start_time).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</td>
                   <td>
                     <span className={`status-badge status-badge--${trip.status}`}>
@@ -176,7 +207,10 @@ export default function Trips() {
                         <button className="btn btn--ghost btn--sm" onClick={() => markRunning(trip.id)} style={{ color: 'var(--color-success)' }}>▶ Start</button>
                       )}
                       {trip.status === 'running' && (
-                        <button className="btn btn--ghost btn--sm" onClick={() => markComplete(trip.id)} style={{ color: 'var(--color-warning)' }}>✓ Complete</button>
+                        <>
+                          <button className="btn btn--ghost btn--sm" onClick={() => startReturnJourney(trip)} style={{ color: 'var(--color-info, #3b82f6)' }}>↩ Return Journey</button>
+                          <button className="btn btn--ghost btn--sm" onClick={() => markComplete(trip.id)} style={{ color: 'var(--color-warning)' }}>✓ Complete</button>
+                        </>
                       )}
                       <button className="btn btn--ghost btn--sm" onClick={() => openEdit(trip)}>Edit</button>
                       <button className="btn btn--danger btn--sm" onClick={() => handleDelete(trip.id)}>Delete</button>
