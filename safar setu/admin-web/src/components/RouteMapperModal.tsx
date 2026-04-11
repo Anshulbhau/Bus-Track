@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useRouteStopsDetailed } from '../hooks/useSupabase'
@@ -12,6 +12,14 @@ const stopIcon = new L.DivIcon({
   popupAnchor: [0, -12]
 })
 
+const newStopIcon = new L.DivIcon({
+  className: 'custom-stop-marker',
+  html: `<div style="background:#10b981;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px rgba(16,185,129,0.6);border:2px solid white;font-size:14px;font-weight:bold;cursor:grab;">+</div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -14]
+})
+
 function MapEvents({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -19,6 +27,37 @@ function MapEvents({ onMapClick }: { onMapClick: (lat: number, lng: number) => v
     }
   })
   return null
+}
+
+function DraggableMarker({ position, onDragEnd }: {
+  position: [number, number]
+  onDragEnd: (lat: number, lng: number) => void
+}) {
+  const markerRef = useRef<L.Marker>(null)
+  const eventHandlers = useMemo(
+    () => ({
+      dragend() {
+        const marker = markerRef.current
+        if (marker) {
+          const latlng = marker.getLatLng()
+          onDragEnd(latlng.lat, latlng.lng)
+        }
+      },
+    }),
+    [onDragEnd],
+  )
+
+  return (
+    <Marker
+      draggable={true}
+      eventHandlers={eventHandlers}
+      position={position}
+      ref={markerRef}
+      icon={newStopIcon}
+    >
+      <Popup>Drag to adjust position</Popup>
+    </Marker>
+  )
 }
 
 interface RouteMapperModalProps {
@@ -118,7 +157,7 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
             <div style={{ background: 'var(--color-bg-glass)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
               <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem' }}>Add New Stop</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-                Click directly on the map to automatically populate latitude and longitude.
+                Click the map to place a stop, then <strong>drag the marker</strong> to adjust. You can also type coordinates manually.
               </p>
               
               <form onSubmit={handleAddStop} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -129,11 +168,11 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
                     <label style={{ fontSize: '0.85rem' }}>Latitude</label>
-                    <input required readOnly value={form.lat} placeholder="Click map" style={{ padding: '8px', fontSize: '0.9rem', backgroundColor: 'var(--color-bg)' }} />
+                    <input required type="number" step="any" value={form.lat} placeholder="e.g. 32.7266" onChange={e => setForm(f => ({ ...f, lat: e.target.value }))} style={{ padding: '8px', fontSize: '0.9rem' }} />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
                     <label style={{ fontSize: '0.85rem' }}>Longitude</label>
-                    <input required readOnly value={form.lng} placeholder="Click map" style={{ padding: '8px', fontSize: '0.9rem', backgroundColor: 'var(--color-bg)' }} />
+                    <input required type="number" step="any" value={form.lng} placeholder="e.g. 74.8570" onChange={e => setForm(f => ({ ...f, lng: e.target.value }))} style={{ padding: '8px', fontSize: '0.9rem' }} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -197,11 +236,12 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
                 <Polyline positions={polylinePositions} color="var(--color-primary)" weight={4} opacity={0.7} />
               )}
               
-              {/* If clicking map, show a tentative marker */}
-              {form.lat && form.lng && (
-                <Marker position={[Number(form.lat), Number(form.lng)]}>
-                  <Popup>New Stop Location</Popup>
-                </Marker>
+              {/* Draggable tentative marker for new stop */}
+              {form.lat && form.lng && !isNaN(Number(form.lat)) && !isNaN(Number(form.lng)) && (
+                <DraggableMarker
+                  position={[Number(form.lat), Number(form.lng)]}
+                  onDragEnd={(lat, lng) => setForm(f => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }))}
+                />
               )}
             </MapContainer>
           </div>
