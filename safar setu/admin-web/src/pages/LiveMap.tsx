@@ -56,13 +56,15 @@ export default function LiveMap() {
   const mapCenter = getMapCenter()
 
   // Fetch OSRM road-following route between waypoints
+  // Sends all waypoints in a single request for reliability.
+  // continue_straight=true prevents unnecessary detours through side roads.
   async function fetchOSRMRoute(waypoints: [number, number][]): Promise<[number, number][]> {
     if (waypoints.length < 2) return waypoints
     // OSRM expects lng,lat format
     const coords = waypoints.map(([lat, lng]) => `${lng},${lat}`).join(';')
     try {
       const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+        `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&continue_straight=true`
       )
       const data = await res.json()
       if (data.code === 'Ok' && data.routes?.[0]?.geometry?.coordinates) {
@@ -377,7 +379,12 @@ export default function LiveMap() {
             {/* Render dark route lines for ALL routes using OSRM road geometry */}
             {allRoutes.map(route => {
               const cacheKey = `route-${route.id}`
-              const positions = osrmRouteCache[cacheKey]
+              // Use OSRM cached route if available, otherwise fall back to straight-line waypoints
+              const osrmPositions = osrmRouteCache[cacheKey]
+              const straightLinePositions: [number, number][] = (route.route_stops || [])
+                .filter((rs: any) => rs.stops?.latitude && rs.stops?.longitude)
+                .map((rs: any) => [Number(rs.stops.latitude), Number(rs.stops.longitude)] as [number, number])
+              const positions = osrmPositions || straightLinePositions
               if (!positions || positions.length < 2) return null
 
               // Check if this route is part of any active trip
