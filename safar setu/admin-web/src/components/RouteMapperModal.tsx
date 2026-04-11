@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useRouteStopsDetailed } from '../hooks/useSupabase'
-import { insertStop, insertRouteStop, deleteRouteStop } from '../lib/api'
+import { insertStop, insertRouteStop, deleteRouteStop, updateStop } from '../lib/api'
 
 const stopIcon = new L.DivIcon({
   className: 'custom-stop-marker',
@@ -70,6 +70,7 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
   const { data: routeStops, loading, refetch } = useRouteStopsDetailed(routeId || '')
   
   const [form, setForm] = useState({ stop_name: '', lat: '', lng: '' })
+  const [editingStopId, setEditingStopId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
@@ -89,35 +90,70 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
     if (!form.lat || !form.lng || !form.stop_name) return
 
     setSaving(true)
-    // 1. Create the stop
-    const { data: newStop, error: stopError } = await insertStop({
-      stop_name: form.stop_name,
-      latitude: Number(form.lat),
-      longitude: Number(form.lng)
-    })
 
-    if (stopError || !newStop) {
-      showToast(stopError?.message || 'Error creating stop', 'error')
+    if (editingStopId) {
+      // Update existing stop
+      const { error: updateError } = await updateStop(editingStopId, {
+        stop_name: form.stop_name,
+        latitude: Number(form.lat),
+        longitude: Number(form.lng)
+      })
+
       setSaving(false)
-      return
-    }
-
-    // 2. Link it to the route
-    const nextOrder = (routeStops?.length || 0) + 1
-    const { error: linkError } = await insertRouteStop({
-      route_id: routeId!,
-      stop_id: newStop.id,
-      stop_order: nextOrder
-    })
-
-    setSaving(false)
-    if (linkError) {
-      showToast(linkError.message, 'error')
+      if (updateError) {
+        showToast(updateError.message, 'error')
+      } else {
+        showToast('Stop updated successfully!')
+        setForm({ stop_name: '', lat: '', lng: '' })
+        setEditingStopId(null)
+        refetch()
+      }
     } else {
-      showToast('Stop added successfully!')
-      setForm({ stop_name: '', lat: '', lng: '' })
-      refetch()
+      // 1. Create the stop
+      const { data: newStop, error: stopError } = await insertStop({
+        stop_name: form.stop_name,
+        latitude: Number(form.lat),
+        longitude: Number(form.lng)
+      })
+
+      if (stopError || !newStop) {
+        showToast(stopError?.message || 'Error creating stop', 'error')
+        setSaving(false)
+        return
+      }
+
+      // 2. Link it to the route
+      const nextOrder = (routeStops?.length || 0) + 1
+      const { error: linkError } = await insertRouteStop({
+        route_id: routeId!,
+        stop_id: newStop.id,
+        stop_order: nextOrder
+      })
+
+      setSaving(false)
+      if (linkError) {
+        showToast(linkError.message, 'error')
+      } else {
+        showToast('Stop added successfully!')
+        setForm({ stop_name: '', lat: '', lng: '' })
+        refetch()
+      }
     }
+  }
+
+  function handleEditClick(rs: any) {
+    if (!rs.stops) return
+    setEditingStopId(rs.stops.id)
+    setForm({
+      stop_name: rs.stops.stop_name,
+      lat: String(rs.stops.latitude),
+      lng: String(rs.stops.longitude),
+    })
+  }
+
+  function handleCancelEdit() {
+    setEditingStopId(null)
+    setForm({ stop_name: '', lat: '', lng: '' })
   }
 
   async function handleDeleteRouteStop(id: string) {
@@ -155,7 +191,7 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
           {/* Left Panel - Stops List & Form */}
           <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
             <div style={{ background: 'var(--color-bg-glass)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem' }}>Add New Stop</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem' }}>{editingStopId ? 'Edit Stop' : 'Add New Stop'}</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
                 Click the map to place a stop, then <strong>drag the marker</strong> to adjust. You can also type coordinates manually.
               </p>
@@ -176,11 +212,11 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="button" className="btn btn--ghost" onClick={() => setForm({ stop_name: '', lat: '', lng: '' })} disabled={!form.lat && !form.stop_name} style={{ flex: '1' }}>
-                    Clear
+                  <button type="button" className="btn btn--ghost" onClick={handleCancelEdit} disabled={!form.lat && !form.stop_name} style={{ flex: '1' }}>
+                    {editingStopId ? 'Cancel' : 'Clear'}
                   </button>
                   <button type="submit" className="btn btn--primary" disabled={saving || !form.lat} style={{ flex: '2' }}>
-                    {saving ? 'Adding...' : 'Add Stop'}
+                    {saving ? 'Saving...' : editingStopId ? 'Update Stop' : 'Add Stop'}
                   </button>
                 </div>
               </form>
@@ -210,7 +246,10 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
                           Lat: {rs.stops?.latitude?.toFixed(4)} • Lng: {rs.stops?.longitude?.toFixed(4)}
                         </div>
                       </div>
-                      <button className="btn btn--danger btn--sm" style={{ padding: '4px 8px' }} onClick={() => handleDeleteRouteStop(rs.id)}>×</button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn btn--ghost btn--sm" style={{ padding: '4px 8px' }} onClick={() => handleEditClick(rs)}>✎</button>
+                        <button className="btn btn--danger btn--sm" style={{ padding: '4px 8px' }} onClick={() => handleDeleteRouteStop(rs.id)}>×</button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -224,7 +263,7 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
               <MapEvents onMapClick={(lat, lng) => setForm(f => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }))} />
               
-              {routeStops?.filter((rs:any) => rs.stops).map((rs: any, index: number) => (
+              {routeStops?.filter((rs:any) => rs.stops && rs.stops.id !== editingStopId).map((rs: any, index: number) => (
                 <Marker key={rs.id} position={[rs.stops.latitude, rs.stops.longitude]} icon={stopIcon}>
                   <Popup>
                     <strong>{index + 1}. {rs.stops.stop_name}</strong>

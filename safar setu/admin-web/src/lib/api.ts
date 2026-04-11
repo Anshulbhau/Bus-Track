@@ -68,6 +68,10 @@ export async function insertStop(data: { stop_name: string; latitude: number; lo
   return supabase.from('stops').insert(data).select().single()
 }
 
+export async function updateStop(id: string, data: Partial<{ stop_name: string; latitude: number; longitude: number }>) {
+  return supabase.from('stops').update(data).eq('id', id).select().single()
+}
+
 export async function insertRouteStop(data: { route_id: string; stop_id: string; stop_order: number }) {
   return supabase.from('route_stops').insert(data).select().single()
 }
