@@ -35,6 +35,8 @@
   --gradient-card: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.05) 100%);
   --gradient-sidebar: linear-gradient(180deg, #0f1629 0%, #0b0f1a 100%);
 
+  --gradient-map: linear-gradient(145deg, #111827 0%, #1e293b 100%);
+
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs: 0.7rem;
@@ -73,6 +75,24 @@
   --sidebar-width: 260px;
   --sidebar-collapsed: 72px;
   --header-height: 64px;
+}
+
+/* ── Light Theme Overrides ── */
+.theme-light {
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-card: rgba(255, 255, 255, 0.85);
+  --color-bg-glass: rgba(0, 0, 0, 0.04);
+  --color-bg-hover: rgba(0, 0, 0, 0.07);
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-active: rgba(99, 102, 241, 0.5);
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+
+  --gradient-sidebar: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --gradient-map: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
 }
 
 /* ── Reset & Base ── */
@@ -138,6 +158,7 @@ ul, ol {
 .app-layout {
   display: flex;
   min-height: 100vh;
+  background-color: var(--color-bg-primary);
 }
 
 .main-area {
@@ -571,7 +592,7 @@ ul, ol {
   width: 100%;
   height: 380px;
   border-radius: var(--radius-md);
-  background: linear-gradient(145deg, #111827 0%, #1e293b 100%);
+  background: var(--gradient-map);
   border: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
