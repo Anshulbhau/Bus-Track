@@ -47,6 +47,29 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0)
   const notifRef = useRef<HTMLDivElement>(null)
 
+  // ── Theme ──────────────────────────────────────
+  const [isLight, setIsLight] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('app-theme')
+    if (saved === 'light') {
+      setIsLight(true)
+      document.documentElement.classList.add('theme-light')
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const newLight = !isLight
+    setIsLight(newLight)
+    if (newLight) {
+      document.documentElement.classList.add('theme-light')
+      localStorage.setItem('app-theme', 'light')
+    } else {
+      document.documentElement.classList.remove('theme-light')
+      localStorage.setItem('app-theme', 'dark')
+    }
+  }
+
   // Debounced search query
   useEffect(() => {
     if (!query.trim()) {
@@ -343,6 +366,10 @@ export default function Header() {
             </div>
           )}
         </div>
+
+        <button className="header__icon-btn" title="Toggle Theme" onClick={toggleTheme}>
+          {isLight ? '🌙' : '☀️'}
+        </button>
 
         <button className="header__icon-btn" id="btn-fullscreen" title="Toggle Fullscreen"
           onClick={() => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen() }}>
