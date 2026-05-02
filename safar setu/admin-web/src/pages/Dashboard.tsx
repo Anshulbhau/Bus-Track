@@ -50,8 +50,9 @@ export default function Dashboard() {
 
     const channel = supabase
       .channel('dashboard_vehicle_locations')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vehicle_locations' }, (payload: any) => {
-        const loc = payload.new
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicle_locations' }, (payload: any) => {
+        const loc = payload.new || payload.old
+        if (!loc || !loc.vehicle_id) return
         setLocations(prev => ({
           ...prev,
           [loc.vehicle_id]: { lat: loc.latitude, lng: loc.longitude, speed: loc.speed, recorded_at: loc.recorded_at },

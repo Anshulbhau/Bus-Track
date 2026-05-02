@@ -74,13 +74,6 @@ export type VehicleLocation = {
   recorded_at: string
 }
 
-export type Booking = {
-  id: string
-  passenger_id: string
-  trip_id: string
-  created_at: string
-}
-
 /* Supabase generic DB helper type (minimal) */
 export type Database = {
   public: {
@@ -92,7 +85,6 @@ export type Database = {
       route_stops: { Row: RouteStop; Insert: Partial<RouteStop>; Update: Partial<RouteStop> }
       trips: { Row: Trip; Insert: Partial<Trip>; Update: Partial<Trip> }
       vehicle_locations: { Row: VehicleLocation; Insert: Partial<VehicleLocation>; Update: Partial<VehicleLocation> }
-      bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> }
     }
   }
 }

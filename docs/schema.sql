@@ -6,29 +6,6 @@ CREATE TABLE public.admin_users (
   CONSTRAINT admin_users_pkey PRIMARY KEY (user_id),
   CONSTRAINT admin_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
-CREATE TABLE public.bookings (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  passenger_id uuid NOT NULL,
-  trip_id uuid NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT bookings_pkey PRIMARY KEY (id),
-  CONSTRAINT bookings_passenger_id_fkey FOREIGN KEY (passenger_id) REFERENCES public.profiles(id),
-  CONSTRAINT bookings_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id)
-);
-CREATE TABLE public.payments (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  booking_id uuid,
-  passenger_id uuid,
-  amount numeric NOT NULL,
-  currency text DEFAULT 'INR'::text,
-  razorpay_order_id text UNIQUE,
-  razorpay_payment_id text UNIQUE,
-  status text DEFAULT 'pending'::text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT payments_pkey PRIMARY KEY (id),
-  CONSTRAINT payments_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
-  CONSTRAINT payments_passenger_id_fkey FOREIGN KEY (passenger_id) REFERENCES public.profiles(id)
-);
 CREATE TABLE public.profiles (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text,
@@ -96,7 +73,7 @@ CREATE TABLE public.vehicle_eta (
 );
 CREATE TABLE public.vehicle_locations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  vehicle_id uuid NOT NULL,
+  vehicle_id uuid NOT NULL UNIQUE,
   latitude numeric NOT NULL,
   longitude numeric NOT NULL,
   speed numeric,

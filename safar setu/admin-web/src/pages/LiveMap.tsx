@@ -209,8 +209,10 @@ export default function LiveMap() {
     // Real-time subscription for new location pings
     const channel = supabase
       .channel('bus_locations_realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vehicle_locations' }, (payload: any) => {
-        const loc = payload.new
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicle_locations' }, (payload: any) => {
+        const loc = payload.new || payload.old
+        if (!loc || !loc.vehicle_id) return
+
         setLocations(prev => ({
           ...prev,
           [loc.vehicle_id]: {
