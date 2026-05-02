@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useRouteStopsDetailed } from '../hooks/useSupabase'
-import { insertStop, insertRouteStop, deleteRouteStop, updateStop } from '../lib/api'
+import { insertStop, insertRouteStop, deleteRouteStop, updateStop, calculateAndStoreRouteDistances } from '../lib/api'
 
 const stopIcon = new L.DivIcon({
   className: 'custom-stop-marker',
@@ -136,6 +136,10 @@ export default function RouteMapperModal({ routeId, open, onClose }: RouteMapper
       } else {
         showToast('Stop added successfully!')
         setForm({ stop_name: '', lat: '', lng: '' })
+        
+        // Calculate and store real road distances using OSRM
+        await calculateAndStoreRouteDistances(routeId!)
+        
         refetch()
       }
     }
