@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useRoutes } from '../hooks/useSupabase'
-import { insertRoute, updateRoute, deleteRoute } from '../lib/api'
+import { insertRoute, updateRoute, deleteRoute, recalculateAllRouteDistances } from '../lib/api'
 import Modal from '../components/Modal'
 import RouteMapperModal from '../components/RouteMapperModal'
 
@@ -12,6 +12,7 @@ export default function RoutesPage() {
   const [mapRouteId, setMapRouteId] = useState<string | null>(null)
   const [form, setForm] = useState({ route_name: '', start_location: '', end_location: '', distance_km: '' })
   const [saving, setSaving] = useState(false)
+  const [recalculating, setRecalculating] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
@@ -66,6 +67,21 @@ export default function RoutesPage() {
     else { showToast('Route deleted!'); refetch() }
   }
 
+  async function handleRecalculateAll() {
+    if (!confirm('This will recalculate all stop distances using OSRM API. This may take a while. Continue?')) return
+    
+    setRecalculating(true)
+    try {
+      await recalculateAllRouteDistances()
+      showToast('All distances recalculated successfully!')
+      refetch()
+    } catch (err) {
+      showToast('Failed to recalculate distances. Check console for details.', 'error')
+    } finally {
+      setRecalculating(false)
+    }
+  }
+
   const totalDistance = routes.reduce((sum, r) => sum + (r.distance_km ?? 0), 0)
 
   return (
@@ -75,9 +91,18 @@ export default function RoutesPage() {
           <h2>Route Management</h2>
           <p>Define and manage bus routes across the city</p>
         </div>
-        <button className="btn btn--primary" id="btn-add-route" onClick={openAdd}>
-          + Create Route
-        </button>
+        <div className="page-header__right" style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="btn btn--accent" 
+            onClick={handleRecalculateAll} 
+            disabled={recalculating}
+          >
+            {recalculating ? 'Processing...' : '🔄 Recalculate All Distances'}
+          </button>
+          <button className="btn btn--primary" id="btn-add-route" onClick={openAdd}>
+            + Create Route
+          </button>
+        </div>
       </div>
 
       <div className="stats-grid">
