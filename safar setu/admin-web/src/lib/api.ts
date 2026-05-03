@@ -64,12 +64,57 @@ export async function deleteTrip(id: string) {
 }
 
 // ── Stops & Route Stops ──
+async function snapCoordinatesToRoad(lat: number, lng: number): Promise<{ latitude: number, longitude: number }> {
+  try {
+    const osrmUrl = `http://router.project-osrm.org/nearest/v1/driving/${lng},${lat}`;
+    const response = await fetch(osrmUrl);
+    if (!response.ok) {
+      console.warn(`OSRM Nearest API failed for ${lat},${lng}:`, await response.text());
+      return { latitude: lat, longitude: lng }; // Fallback
+    }
+
+    const data = await response.json();
+    if (data.code === 'Ok' && data.waypoints && data.waypoints.length > 0) {
+      const snappedLng = data.waypoints[0].location[0];
+      const snappedLat = data.waypoints[0].location[1];
+      console.log(`✅ Snapped coordinates: (${lat}, ${lng}) -> (${snappedLat}, ${snappedLng})`);
+      return { latitude: snappedLat, longitude: snappedLng };
+    }
+    
+    console.warn(`OSRM Nearest API returned no waypoints for ${lat},${lng}. Using original coordinates.`);
+    return { latitude: lat, longitude: lng }; // Fallback
+  } catch (error) {
+    console.error('Error in snapCoordinatesToRoad:', error);
+    return { latitude: lat, longitude: lng }; // Fallback
+  }
+}
+
 export async function insertStop(data: { stop_name: string; latitude: number; longitude: number }) {
-  return supabase.from('stops').insert(data).select().single()
+  const snappedCoords = await snapCoordinatesToRoad(data.latitude, data.longitude);
+  const finalData = { ...data, ...snappedCoords };
+  return supabase.from('stops').insert(finalData).select().single()
 }
 
 export async function updateStop(id: string, data: Partial<{ stop_name: string; latitude: number; longitude: number }>) {
-  return supabase.from('stops').update(data).eq('id', id).select().single()
+  const finalData = { ...data };
+  
+  if (data.latitude !== undefined && data.longitude !== undefined) {
+    const snappedCoords = await snapCoordinatesToRoad(data.latitude, data.longitude);
+    finalData.latitude = snappedCoords.latitude;
+    finalData.longitude = snappedCoords.longitude;
+  } else if (data.latitude !== undefined || data.longitude !== undefined) {
+    // If only one coordinate is provided, fetch the other from DB to snap properly
+    const { data: existingStop } = await supabase.from('stops').select('latitude, longitude').eq('id', id).single();
+    if (existingStop) {
+      const latToSnap = data.latitude !== undefined ? data.latitude : existingStop.latitude;
+      const lngToSnap = data.longitude !== undefined ? data.longitude : existingStop.longitude;
+      const snappedCoords = await snapCoordinatesToRoad(latToSnap, lngToSnap);
+      finalData.latitude = snappedCoords.latitude;
+      finalData.longitude = snappedCoords.longitude;
+    }
+  }
+
+  return supabase.from('stops').update(finalData).eq('id', id).select().single()
 }
 
 export async function insertRouteStop(data: { route_id: string; stop_id: string; stop_order: number }) {
@@ -81,7 +126,7 @@ export async function deleteRouteStop(id: string) {
 }
 
 // ── Distances & ETA (OSRM Integration) ──
-export async function calculateAndStoreRouteDistances(routeId: string) {
+export async function calculateAndStoreRouteDistances(routeId: string, force = false) {
   try {
     // 1. Fetch all route_stops for this route, joined with stops table, ordered by stop_order
     const { data: routeStops, error: fetchError } = await supabase
@@ -101,63 +146,125 @@ export async function calculateAndStoreRouteDistances(routeId: string) {
       .order('stop_order', { ascending: true })
 
     if (fetchError) throw fetchError
-    if (!routeStops || routeStops.length < 2) return // Need at least 2 stops to calculate distance
+    
+    // Handle case where route has less than 2 stops: distance is 0
+    if (!routeStops || routeStops.length < 2) {
+      await supabase.from('routes').update({ distance_km: 0 }).eq('id', routeId)
+      return
+    }
 
-    // 2. Loop through consecutive pairs of stops
-    for (let i = 1; i < routeStops.length; i++) {
-      const prevStop = routeStops[i - 1]
-      const currStop = routeStops[i]
-
-      // Optimization: Skip if already calculated
-      if (currStop.distance_from_prev_km !== null && currStop.avg_travel_time_minutes !== null) {
-        continue
-      }
-
-      // Safe access for joined data (handles both single object or array format from Supabase)
-      const prevStopData = Array.isArray(prevStop.stops) ? prevStop.stops[0] : prevStop.stops
-      const currStopData = Array.isArray(currStop.stops) ? currStop.stops[0] : currStop.stops
-
-      if (!prevStopData || !currStopData) continue
-
-      const lat1 = prevStopData.latitude
-      const lng1 = prevStopData.longitude
-      const lat2 = currStopData.latitude
-      const lng2 = currStopData.longitude
-
-      // 3. Call OSRM API (format: lng,lat)
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=false`
-      
-      const response = await fetch(osrmUrl)
-      if (!response.ok) {
-        console.error('OSRM API Error:', await response.text())
-        continue
-      }
-
-      const data = await response.json()
-      
-      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-        const route = data.routes[0]
-        
-        // 4. Parse response
-        // OSRM returns distance in meters, duration in seconds
-        const distanceKm = Number((route.distance / 1000).toFixed(2))
-        const durationMin = Number((route.duration / 60).toFixed(2))
-
-        // 5. Update route_stops
-        const { error: updateError } = await supabase
-          .from('route_stops')
-          .update({
-            distance_from_prev_km: distanceKm,
-            avg_travel_time_minutes: durationMin
-          })
-          .eq('id', currStop.id)
-
-        if (updateError) {
-          console.error(`Error updating route_stop ${currStop.id}:`, updateError.message)
+    // Optimization: If force = false, check if we can skip
+    if (!force) {
+      let allCalculated = true
+      for (let i = 1; i < routeStops.length; i++) {
+        if (routeStops[i].distance_from_prev_km === null) {
+          allCalculated = false
+          break
         }
+      }
+      if (allCalculated) return
+    }
+
+    // Extract valid stops and coordinates
+    const validStops = []
+    const coordinates: string[] = []
+    
+    for (const stop of routeStops) {
+      const stopData = Array.isArray(stop.stops) ? stop.stops[0] : stop.stops
+      if (stopData && stopData.longitude !== undefined && stopData.latitude !== undefined) {
+        coordinates.push(`${stopData.longitude},${stopData.latitude}`)
+        validStops.push(stop)
+      }
+    }
+
+    if (validStops.length < 2) return
+
+    // 2. Call OSRM API using ALL stops in ONE request
+    const coordsString = coordinates.join(';')
+    const osrmUrl = `http://router.project-osrm.org/route/v1/driving/${coordsString}?overview=false`
+    
+    const response = await fetch(osrmUrl)
+    if (!response.ok) {
+      console.error(`OSRM API Error for route ${routeId}:`, await response.text())
+      return
+    }
+
+    const data = await response.json()
+    
+    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+      const route = data.routes[0]
+      
+      // 3. Update routes table with total route distance
+      const totalDistanceKm = Number((route.distance / 1000).toFixed(2))
+      const { error: routeUpdateError } = await supabase
+        .from('routes')
+        .update({ distance_km: totalDistanceKm })
+        .eq('id', routeId)
+
+      if (routeUpdateError) {
+        console.error(`Error updating total distance for route ${routeId}:`, routeUpdateError.message)
+      }
+
+      // 4. Extract legs and update route_stops for each segment
+      const legs = route.legs
+      if (legs && legs.length === validStops.length - 1) {
+        for (let i = 0; i < legs.length; i++) {
+          const leg = legs[i]
+          const currStop = validStops[i + 1] // legs[i] corresponds to stop[i] -> stop[i+1]
+
+          const segmentDistanceKm = Number((leg.distance / 1000).toFixed(2))
+          const segmentDurationMin = Number((leg.duration / 60).toFixed(2))
+
+          const { error: updateError } = await supabase
+            .from('route_stops')
+            .update({
+              distance_from_prev_km: segmentDistanceKm,
+              avg_travel_time_minutes: segmentDurationMin
+            })
+            .eq('id', currStop.id)
+
+          if (updateError) {
+            console.error(`Error updating route_stop ${currStop.id}:`, updateError.message)
+          }
+        }
+      } else {
+        console.warn(`Mismatch between OSRM legs (${legs?.length}) and stops count (${validStops.length}) for route ${routeId}`)
       }
     }
   } catch (err) {
     console.error('Error in calculateAndStoreRouteDistances:', err)
+  }
+}
+
+/**
+ * Fetches all unique route_ids from route_stops and recalculates 
+ * their distances using OSRM, overwriting existing values.
+ */
+export async function recalculateAllRouteDistances() {
+  console.log('🚀 Starting recalculation of all route distances...')
+  
+  try {
+    // Fetch all unique route_ids from route_stops
+    const { data, error } = await supabase
+      .from('route_stops')
+      .select('route_id')
+
+    if (error) throw error
+    if (!data) return
+
+    // Get unique route IDs
+    const routeIds = Array.from(new Set(data.map(item => item.route_id)))
+    console.log(`📌 Found ${routeIds.length} routes to process.`)
+
+    for (const routeId of routeIds) {
+      console.log(`⏳ Processing route ID: ${routeId}...`)
+      await calculateAndStoreRouteDistances(routeId, true)
+      console.log(`✅ Completed route ID: ${routeId}`)
+    }
+
+    console.log('🏁 All route distances have been recalculated successfully!')
+  } catch (err) {
+    console.error('❌ Error in recalculateAllRouteDistances:', err)
+    throw err
   }
 }
