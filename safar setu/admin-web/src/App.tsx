@@ -35,15 +35,15 @@ class ErrorBoundary extends React.Component<
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth()
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#64748b' }}>Authenticating...</div>
   if (!session) return <Navigate to="/auth" replace />
   return <>{children}</>
 }
 
 function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
+    <AuthProvider>
+      <ErrorBoundary>
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -58,10 +58,11 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
             </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </AuthProvider>
   )
 }
 
