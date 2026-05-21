@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +11,29 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [formLoading, setFormLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // ── Theme ──────────────────────────────────────
+  const [isLight, setIsLight] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('app-theme')
+    if (saved === 'light') {
+      setIsLight(true)
+      document.documentElement.classList.add('theme-light')
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const newLight = !isLight
+    setIsLight(newLight)
+    if (newLight) {
+      document.documentElement.classList.add('theme-light')
+      localStorage.setItem('app-theme', 'light')
+    } else {
+      document.documentElement.classList.remove('theme-light')
+      localStorage.setItem('app-theme', 'dark')
+    }
+  }
 
   // Still determining session state — don't flash the form
   if (loading) return null
@@ -65,8 +88,42 @@ export default function Auth() {
         alignItems: 'center',
         minHeight: '100vh',
         backgroundColor: 'var(--color-bg-primary)',
+        position: 'relative',
       }}
     >
+      {/* Theme Toggle Button */}
+      <div style={{ position: 'absolute', top: '24px', right: '24px' }}>
+        <button
+          className="header__icon-btn"
+          title="Toggle Theme"
+          onClick={toggleTheme}
+          style={{
+            background: 'var(--color-bg-glass)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-sm)',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            color: 'var(--color-text-secondary)',
+            transition: 'all var(--transition-fast)',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'var(--color-bg-hover)'
+            e.currentTarget.style.color = 'var(--color-text-primary)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'var(--color-bg-glass)'
+            e.currentTarget.style.color = 'var(--color-text-secondary)'
+          }}
+        >
+          {isLight ? '🌙' : '☀️'}
+        </button>
+      </div>
+
       <div
         className="glass-panel"
         style={{ width: '100%', maxWidth: '400px', padding: '32px' }}

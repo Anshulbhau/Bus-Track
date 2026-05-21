@@ -92,6 +92,15 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  React.useEffect(() => {
+    const saved = localStorage.getItem('app-theme')
+    if (saved === 'light') {
+      document.documentElement.classList.add('theme-light')
+    } else {
+      document.documentElement.classList.remove('theme-light')
+    }
+  }, [])
+
   return (
     <AuthProvider>
       <ErrorBoundary>

@@ -232,7 +232,7 @@ export default function Header() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12, width: '100%',
                         padding: '9px 16px', textAlign: 'left', background: 'none', cursor: 'pointer',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        borderBottom: '1px solid var(--color-border)',
                         color: 'inherit', transition: 'background 150ms',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
@@ -326,7 +326,7 @@ export default function Header() {
                       key={n.id}
                       style={{
                         display: 'flex', gap: 12, padding: '12px 16px',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        borderBottom: '1px solid var(--color-border)',
                         background: n.read ? 'none' : 'rgba(99,102,241,0.07)',
                         transition: 'background 150ms',
                       }}

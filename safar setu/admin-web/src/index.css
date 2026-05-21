@@ -13,6 +13,7 @@
   --color-bg-hover: rgba(255, 255, 255, 0.07);
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-active: rgba(99, 102, 241, 0.5);
+  --color-header-bg: rgba(11, 15, 26, 0.8);
 
   --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
@@ -86,6 +87,7 @@
   --color-bg-hover: rgba(0, 0, 0, 0.07);
   --color-border: rgba(0, 0, 0, 0.08);
   --color-border-active: rgba(99, 102, 241, 0.5);
+  --color-header-bg: rgba(255, 255, 255, 0.8);
 
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
@@ -359,7 +361,7 @@ ul, ol {
   left: var(--sidebar-width);
   right: 0;
   height: var(--header-height);
-  background: rgba(11, 15, 26, 0.8);
+  background: var(--color-header-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--color-border);
