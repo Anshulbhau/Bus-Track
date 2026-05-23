@@ -2,6 +2,62 @@ import { useState } from 'react'
 import { useTrips, useBuses, useRoutes, useDrivers } from '../hooks/useSupabase'
 import { insertTrip, updateTrip, deleteTrip } from '../lib/api'
 import Modal from '../components/Modal'
+import { supabase } from '../lib/supabase'
+
+async function getRouteDurationMinutes(routeId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('route_stops')
+    .select('avg_travel_time_minutes')
+    .eq('route_id', routeId)
+  
+  if (error || !data) return 0
+  return data.reduce((sum, stop) => sum + Number(stop.avg_travel_time_minutes || 0), 0)
+}
+
+async function validateTrip(
+  vehicleId: string,
+  status: string,
+  startTimeStr: string,
+  excludeTripId: string | null = null
+): Promise<{ isValid: boolean; message?: string }> {
+  // 1. Fetch running trips for this vehicle
+  const { data: runningTrips, error: fetchError } = await supabase
+    .from('trips')
+    .select('id, start_time, route_id')
+    .eq('vehicle_id', vehicleId)
+    .eq('status', 'running')
+
+  if (fetchError) {
+    return { isValid: false, message: `Validation error: ${fetchError.message}` }
+  }
+
+  // Filter out the trip currently being edited
+  const otherRunningTrips = runningTrips
+    ? runningTrips.filter((t) => t.id !== excludeTripId)
+    : []
+
+  if (otherRunningTrips.length > 0) {
+    if (status === 'running') {
+      return { isValid: false, message: 'This bus is currently running another trip.' }
+    }
+
+    if (status === 'scheduled') {
+      const scheduledStartTime = new Date(startTimeStr).getTime()
+      
+      for (const runningTrip of otherRunningTrips) {
+        const routeDuration = await getRouteDurationMinutes(runningTrip.route_id)
+        const runningStart = new Date(runningTrip.start_time).getTime()
+        const expectedArrival = runningStart + routeDuration * 60 * 1000
+
+        if (scheduledStartTime <= expectedArrival) {
+          return { isValid: false, message: 'This bus is already occupied during the selected time.' }
+        }
+      }
+    }
+  }
+
+  return { isValid: true }
+}
 
 export default function Trips() {
   const { data: trips, loading, error, refetch } = useTrips()
@@ -43,6 +99,15 @@ export default function Trips() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+
+    // Run validations before inserting/updating
+    const validation = await validateTrip(form.vehicle_id, form.status, form.start_time, editId)
+    if (!validation.isValid) {
+      showToast(validation.message || 'Validation failed', 'error')
+      setSaving(false)
+      return
+    }
+
     const payload = {
       vehicle_id: form.vehicle_id,
       route_id: form.route_id,
@@ -79,14 +144,41 @@ export default function Trips() {
   }
 
   async function markRunning(id: string) {
+    const tripToStart = trips.find((t) => t.id === id)
+    if (!tripToStart) return
+
+    setSaving(true)
+    const validation = await validateTrip(tripToStart.vehicle_id, 'running', tripToStart.start_time, id)
+    if (!validation.isValid) {
+      showToast(validation.message || 'Validation failed', 'error')
+      setSaving(false)
+      return
+    }
+
     const { error } = await updateTrip(id, { status: 'running' })
+    setSaving(false)
     if (error) showToast(error.message, 'error')
     else { showToast('Trip started!'); refetch() }
   }
 
   async function startReturnJourney(trip: any) {
+    setSaving(true)
     // Complete the current trip first
-    await updateTrip(trip.id, { status: 'completed', end_time: new Date().toISOString() })
+    const { error: completeError } = await updateTrip(trip.id, { status: 'completed', end_time: new Date().toISOString() })
+    if (completeError) {
+      showToast(completeError.message, 'error')
+      setSaving(false)
+      return
+    }
+
+    // Now validate if there is any OTHER running trip (excluding this just-completed one)
+    const validation = await validateTrip(trip.vehicle_id, 'running', new Date().toISOString(), trip.id)
+    if (!validation.isValid) {
+      showToast(validation.message || 'Validation failed', 'error')
+      setSaving(false)
+      return
+    }
+
     // Create a new return trip with reversed direction
     const newDirection = (trip.direction || 'onward') === 'onward' ? 'return' : 'onward'
     const { error } = await insertTrip({
@@ -97,6 +189,7 @@ export default function Trips() {
       status: 'running',
       direction: newDirection,
     } as any)
+    setSaving(false)
     if (error) showToast(error.message, 'error')
     else { showToast(`Return journey started! (${newDirection === 'return' ? '↩ Return' : '→ Onward'})`); refetch() }
   }
@@ -106,6 +199,12 @@ export default function Trips() {
   const completed = trips.filter((t) => t.status === 'completed').length
 
   const filtered = statusFilter === 'all' ? trips : trips.filter((t) => t.status === statusFilter)
+
+  const runningVehicleIds = new Set(
+    trips
+      .filter((t) => t.status === 'running')
+      .map((t) => t.vehicle_id)
+  )
 
   return (
     <>
@@ -144,7 +243,17 @@ export default function Trips() {
 
       <div className="glass-panel">
         <div className="glass-panel__header">
-          <h3 className="glass-panel__title">All Trips</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <h3 className="glass-panel__title" style={{ margin: 0 }}>All Trips</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', boxShadow: '0 0 6px rgba(239, 68, 68, 0.5)' }} /> Running
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px rgba(34, 197, 94, 0.5)' }} /> Free to go
+              </span>
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {(['all', 'running', 'scheduled', 'completed'] as const).map((s) => (
               <button
@@ -181,7 +290,24 @@ export default function Trips() {
                 <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No trips found</td></tr>
               ) : filtered.map((trip) => (
                 <tr key={trip.id}>
-                  <td>{trip.vehicles?.vehicle_number ?? '—'}</td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <span
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: runningVehicleIds.has(trip.vehicle_id) ? '#ef4444' : '#22c55e',
+                          display: 'inline-block',
+                          boxShadow: runningVehicleIds.has(trip.vehicle_id)
+                            ? '0 0 8px rgba(239, 68, 68, 0.6)'
+                            : '0 0 8px rgba(34, 197, 94, 0.6)'
+                        }}
+                        title={runningVehicleIds.has(trip.vehicle_id) ? 'Bus is currently running a trip' : 'Bus is free to go'}
+                      />
+                      {trip.vehicles?.vehicle_number ?? '—'}
+                    </span>
+                  </td>
                   <td>{trip.routes?.route_name ?? '—'}</td>
                   <td>{trip.profiles?.name ?? '—'}</td>
                   <td>
@@ -204,16 +330,16 @@ export default function Trips() {
                   <td>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {trip.status === 'scheduled' && (
-                        <button className="btn btn--ghost btn--sm" onClick={() => markRunning(trip.id)} style={{ color: 'var(--color-success)' }}>▶ Start</button>
+                        <button className="btn btn--ghost btn--sm" onClick={() => markRunning(trip.id)} disabled={saving} style={{ color: 'var(--color-success)' }}>▶ Start</button>
                       )}
                       {trip.status === 'running' && (
                         <>
-                          <button className="btn btn--ghost btn--sm" onClick={() => startReturnJourney(trip)} style={{ color: 'var(--color-info, #3b82f6)' }}>↩ Return Journey</button>
-                          <button className="btn btn--ghost btn--sm" onClick={() => markComplete(trip.id)} style={{ color: 'var(--color-warning)' }}>✓ Complete</button>
+                          <button className="btn btn--ghost btn--sm" onClick={() => startReturnJourney(trip)} disabled={saving} style={{ color: 'var(--color-info, #3b82f6)' }}>↩ Return Journey</button>
+                          <button className="btn btn--ghost btn--sm" onClick={() => markComplete(trip.id)} disabled={saving} style={{ color: 'var(--color-warning)' }}>✓ Complete</button>
                         </>
                       )}
-                      <button className="btn btn--ghost btn--sm" onClick={() => openEdit(trip)}>Edit</button>
-                      <button className="btn btn--danger btn--sm" onClick={() => handleDelete(trip.id)}>Delete</button>
+                      <button className="btn btn--ghost btn--sm" onClick={() => openEdit(trip)} disabled={saving}>Edit</button>
+                      <button className="btn btn--danger btn--sm" onClick={() => handleDelete(trip.id)} disabled={saving}>Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -228,12 +354,23 @@ export default function Trips() {
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="trip_bus">Vehicle</label>
+              <label htmlFor="trip_bus" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Vehicle</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'normal', color: 'var(--color-text-muted)', display: 'inline-flex', gap: '8px' }}>
+                  <span>🔴 Running</span>
+                  <span>🟢 Free</span>
+                </span>
+              </label>
               <select id="trip_bus" required value={form.vehicle_id} onChange={(e) => setForm({ ...form, vehicle_id: e.target.value })}>
                 <option value="">— Select Vehicle —</option>
-                {buses.map((b) => (
-                  <option key={b.id} value={b.id}>{b.vehicle_number}</option>
-                ))}
+                {buses.map((b) => {
+                  const isRunning = runningVehicleIds.has(b.id)
+                  return (
+                    <option key={b.id} value={b.id}>
+                      {isRunning ? '🔴' : '🟢'} {b.vehicle_number} {isRunning ? '(Running)' : '(Free to go)'}
+                    </option>
+                  )
+                })}
               </select>
             </div>
             <div className="form-group">

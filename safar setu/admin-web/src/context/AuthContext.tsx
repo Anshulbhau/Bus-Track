@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
@@ -21,12 +21,16 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const [role, setRole] = useState<string | null>(null)
-  const [roleLoading, setRoleLoading] = useState(true)
+  const [role, setRole] = useState<string | null>(() => localStorage.getItem('user-role'))
+  const [roleLoading, setRoleLoading] = useState(() => !localStorage.getItem('user-role'))
+
+  const lastFetchedUserId = useRef<string | null>(null)
 
   /** Fetch role from profiles table for the given user id */
-  async function fetchRole(userId: string) {
-    setRoleLoading(true)
+  async function fetchRole(userId: string, silent = false) {
+    if (!silent) {
+      setRoleLoading(true)
+    }
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -37,20 +41,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('Role fetch error:', error.message)
         setRole(null)
+        localStorage.removeItem('user-role')
       } else {
-        setRole(data?.role ?? null)
+        const fetchedRole = data?.role ?? null
+        setRole(fetchedRole)
+        if (fetchedRole) {
+          localStorage.setItem('user-role', fetchedRole)
+        } else {
+          localStorage.removeItem('user-role')
+        }
       }
     } catch (err) {
       console.error('Unexpected error fetching role:', err)
       setRole(null)
+      localStorage.removeItem('user-role')
     } finally {
       setRoleLoading(false)
     }
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
-    setRole(null)
+    setLoading(true)
+    setRoleLoading(true)
+    try {
+      await supabase.auth.signOut()
+    } finally {
+      setSession(null)
+      setRole(null)
+      localStorage.removeItem('user-role')
+      lastFetchedUserId.current = null
+      setLoading(false)
+      setRoleLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -59,8 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
       setLoading(false)
       if (session?.user) {
-        fetchRole(session.user.id)
+        lastFetchedUserId.current = session.user.id
+        const cached = localStorage.getItem('user-role')
+        fetchRole(session.user.id, !!cached)
       } else {
+        localStorage.removeItem('user-role')
+        setRole(null)
         setRoleLoading(false)
       }
     })
@@ -68,13 +94,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession)
       setLoading(false)
-      if (session?.user) {
-        fetchRole(session.user.id)
+
+      if (newSession?.user) {
+        if (lastFetchedUserId.current !== newSession.user.id) {
+          lastFetchedUserId.current = newSession.user.id
+          const cached = localStorage.getItem('user-role')
+          fetchRole(newSession.user.id, !!cached)
+        } else {
+          // Same user session, no need to show loading spinner or re-fetch role from database
+          setRoleLoading(false)
+        }
       } else {
+        lastFetchedUserId.current = null
         setRole(null)
+        localStorage.removeItem('user-role')
         setRoleLoading(false)
       }
     })
