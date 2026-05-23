@@ -151,8 +151,8 @@ export default function LiveMap() {
       // Load OSRM for active trips (direction-aware)
       for (const trip of activeTrips) {
         if (cancelled) return
-        const isReturn = trip.direction === 'return'
-        const cacheKey = `trip-${trip.id}-${isReturn ? 'return' : 'onward'}`
+        const isBackward = trip.direction === 'backward'
+        const cacheKey = `trip-${trip.id}-${isBackward ? 'backward' : 'onward'}`
         if (cache[cacheKey]) continue
         const waypoints = getDirectionAwarePositions(trip)
         if (waypoints.length < 2) continue
@@ -250,7 +250,7 @@ export default function LiveMap() {
     const route = trip.routes
     if (!route?.route_stops) return []
     const stops = [...route.route_stops]
-    if (trip.direction === 'return') {
+    if (trip.direction === 'backward') {
       stops.reverse()
     }
     return stops
@@ -267,11 +267,11 @@ export default function LiveMap() {
   // Helper: get start/end location labels based on direction
   function getDirectionLabels(trip: TripData) {
     const route = trip.routes
-    const isReturn = trip.direction === 'return'
+    const isBackward = trip.direction === 'backward'
     return {
-      toLabel: isReturn ? route?.start_location : route?.end_location,
-      directionBadge: isReturn ? '↩ Return' : '→ Onward',
-      isReturn,
+      toLabel: isBackward ? route?.start_location : route?.end_location,
+      directionBadge: isBackward ? '↩ Backward' : '→ Onward',
+      isBackward,
     }
   }
 
@@ -417,8 +417,8 @@ export default function LiveMap() {
 
             {/* Render Route Polylines for active trips using OSRM road geometry */}
             {activeTrips.map(trip => {
-              const isReturn = trip.direction === 'return'
-              const cacheKey = `trip-${trip.id}-${isReturn ? 'return' : 'onward'}`
+              const isBackward = trip.direction === 'backward'
+              const cacheKey = `trip-${trip.id}-${isBackward ? 'backward' : 'onward'}`
               const positions = osrmRouteCache[cacheKey] || getDirectionAwarePositions(trip)
               if (positions.length < 2) return null
               
@@ -500,7 +500,7 @@ export default function LiveMap() {
             {activeTrips.map(trip => {
               const dirStops = getDirectionAwareStops(trip)
               if (!dirStops.length) return null
-              const isReturn = trip.direction === 'return'
+              const isBackward = trip.direction === 'backward'
 
               return dirStops.map((rs, idx) => {
                 const stop = rs.stops
@@ -514,12 +514,12 @@ export default function LiveMap() {
                 // Show all stops for the selected trip, otherwise just start/end for other trips
                 if (!isSelected && !isFirst && !isLast) return null 
 
-                // For return trips: swap green/red colors
+                // For backward trips: swap green/red colors
                 let fillColor: string
                 if (isFirst) {
-                  fillColor = isReturn ? 'var(--color-danger)' : 'var(--color-success)'
+                  fillColor = isBackward ? 'var(--color-danger)' : 'var(--color-success)'
                 } else if (isLast) {
-                  fillColor = isReturn ? 'var(--color-success)' : 'var(--color-danger)'
+                  fillColor = isBackward ? 'var(--color-success)' : 'var(--color-danger)'
                 } else {
                   fillColor = '#3498db'
                 }
@@ -545,8 +545,8 @@ export default function LiveMap() {
                       <div style={{ fontSize: 12 }}>
                         <strong>{stop.stop_name}</strong>
                         <div style={{ color: 'var(--color-text-muted)' }}>
-                          {isFirst ? (isReturn ? 'Return Start (was End)' : 'Departure Point') : 
-                           isLast ? (isReturn ? 'Return End (was Start)' : 'Final Destination') : 
+                          {isFirst ? (isBackward ? 'Backward Start (was End)' : 'Departure Point') : 
+                           isLast ? (isBackward ? 'Backward End (was Start)' : 'Final Destination') : 
                            `Stop Order: ${rs.stop_order}`}
                         </div>
                       </div>
@@ -576,7 +576,7 @@ export default function LiveMap() {
                       <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6, color: '#444' }}>
                         <div>Driver: <strong>{(bus as any).profiles?.name ?? 'Unassigned'}</strong></div>
                         <div>Route: <strong>{trip?.routes?.route_name ?? 'No active trip'}</strong></div>
-                        {trip && <div>Direction: <strong>{trip.direction === 'return' ? '↩ Return' : '→ Onward'}</strong></div>}
+                        {trip && <div>Direction: <strong>{trip.direction === 'backward' ? '↩ Backward' : '→ Onward'}</strong></div>}
                         <div>Speed: <strong>{loc.speed != null ? `${loc.speed} km/h` : 'N/A'}</strong></div>
                         <div>Updated: {new Date(loc.recorded_at).toLocaleTimeString()}</div>
                       </div>
@@ -723,7 +723,7 @@ export default function LiveMap() {
       {/* Trip details panel for ACTIVE trips */}
       {activeTripToDisplay && (() => {
         const dirStops = getDirectionAwareStops(activeTripToDisplay)
-        const { toLabel, directionBadge, isReturn } = getDirectionLabels(activeTripToDisplay)
+        const { toLabel, directionBadge, isBackward } = getDirectionLabels(activeTripToDisplay)
         const nearestStopIdx = findNearestStopIndex(activeTripToDisplay)
         const busLoc = locations[activeTripToDisplay.vehicle_id]
         
@@ -737,8 +737,8 @@ export default function LiveMap() {
                     <span style={{
                       display: 'inline-block', padding: '3px 10px', borderRadius: 12,
                       fontSize: 'var(--font-size-xs)', fontWeight: 600,
-                      background: isReturn ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                      color: isReturn ? '#ef4444' : '#22c55e',
+                      background: isBackward ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: isBackward ? '#a855f7' : '#3b82f6',
                     }}>
                       {directionBadge}
                     </span>
@@ -780,14 +780,14 @@ export default function LiveMap() {
                   const isPassed = nearestStopIdx >= 0 && idx < nearestStopIdx
                   const isUpcoming = nearestStopIdx >= 0 && idx > nearestStopIdx
                   
-                  // For return trips, swap class names for marker colors
+                  // For backward trips, swap class names for marker colors
                   let dotClass = ''
-                  if (isFirst) dotClass = isReturn ? 'end' : 'start'
-                  else if (isLast) dotClass = isReturn ? 'start' : 'end'
+                  if (isFirst) dotClass = isBackward ? 'end' : 'start'
+                  else if (isLast) dotClass = isBackward ? 'start' : 'end'
                   
                   let label: string
-                  if (isFirst) label = isReturn ? 'Return Start (was Destination)' : 'Departure Point'
-                  else if (isLast) label = isReturn ? 'Return End (was Departure)' : 'Final Destination'
+                  if (isFirst) label = isBackward ? 'Backward Start (was Destination)' : 'Departure Point'
+                  else if (isLast) label = isBackward ? 'Backward End (was Departure)' : 'Final Destination'
                   else label = `Stop #${rs.stop_order}`
 
                   // Add status to label
@@ -846,7 +846,7 @@ export default function LiveMap() {
                       const bus = buses.find(b => b.id === trip.vehicle_id)
                       const loc = locations[trip.vehicle_id]
                       const isSel = selectedTripId === trip.id
-                      const tripDir = trip.direction === 'return' ? '↩' : '→'
+                      const tripDir = trip.direction === 'backward' ? '↩' : '→'
                       return (
                         <tr 
                           key={trip.id} 
@@ -858,7 +858,7 @@ export default function LiveMap() {
                           <td>
                             <span style={{
                                 fontSize: 'var(--font-size-xs)', fontWeight: 600,
-                                color: trip.direction === 'return' ? '#ef4444' : '#22c55e',
+                                color: trip.direction === 'backward' ? '#a855f7' : '#3b82f6',
                               }}>
                                 {tripDir}
                               </span>

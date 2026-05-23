@@ -29,7 +29,7 @@ type NotificationItem = {
   read: boolean
 }
 
-export default function Header() {
+export default function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const title = pageTitles[location.pathname] || 'Dashboard'
@@ -188,6 +188,9 @@ export default function Header() {
   return (
     <header className="header" id="header">
       <div className="header__left">
+        <button className="mobile-menu-btn" onClick={onMenuToggle} aria-label="Toggle Menu">
+          ☰
+        </button>
         <h2 className="header__title">{title}</h2>
         <span className="header__breadcrumb">/ Admin / {title}</span>
       </div>

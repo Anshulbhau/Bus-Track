@@ -891,21 +891,63 @@ ul, ol {
    RESPONSIVE
    ═══════════════════════════════════════ */
 
+/* ── Hamburger Menu Toggle ── */
+.mobile-menu-btn {
+  display: none;
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mobile-menu-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Sidebar Backdrop Blur Overlay ── */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 150;
+  animation: fadeIn 200ms ease;
+}
+
 @media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
   .sidebar {
-    width: var(--sidebar-collapsed);
+    left: -280px !important;
+    width: var(--sidebar-width) !important;
+    z-index: 200 !important;
+    transition: left var(--transition-normal) !important;
+  }
+  .sidebar-open .sidebar {
+    left: 0 !important;
   }
   .sidebar__brand-text,
   .sidebar__link span,
   .sidebar__section-label,
   .sidebar__user-info {
-    display: none;
+    display: block !important;
   }
   .main-area {
-    margin-left: var(--sidebar-collapsed);
+    margin-left: 0 !important;
   }
   .header {
-    left: var(--sidebar-collapsed);
+    left: 0 !important;
   }
   .page-content {
     padding: var(--space-md);
@@ -1217,4 +1259,121 @@ ul, ol {
 
 .leaflet-popup-tip {
   background: var(--color-border) !important;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE RESPONSIVE & LAYOUT OPTIMIZATIONS
+   ═══════════════════════════════════════ */
+
+/* Stacking Form Fields */
+@media (max-width: 576px) {
+  .form-row {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-sm) !important;
+  }
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: var(--space-sm);
+  }
+  .form-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Map details vertical stack on smaller viewports */
+@media (max-width: 992px) {
+  .trip-details-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .active-buses-panel {
+    max-height: 400px !important;
+  }
+  .leaflet-container {
+    height: 380px !important;
+  }
+}
+
+/* Scrollable Data Tables on small screens */
+.glass-panel {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .data-table {
+    min-width: 650px !important;
+  }
+}
+
+/* Modal sizing overlay limits */
+@media (max-width: 768px) {
+  .modal-dialog {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 auto;
+  }
+}
+
+/* Stats cards layout stacking */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-md) !important;
+  }
+}
+
+/* Responsive Headers and Titles */
+@media (max-width: 768px) {
+  .header__breadcrumb {
+    display: none !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .header {
+    padding: 0 var(--space-md) !important;
+  }
+  .header__title {
+    font-size: var(--font-size-md) !important;
+  }
+  .header__search {
+    max-width: 130px !important;
+  }
+  .header__search input {
+    font-size: var(--font-size-xs) !important;
+    padding: 8px 12px 8px 28px !important;
+  }
+  .header__search-icon {
+    left: 8px !important;
+    font-size: var(--font-size-xs) !important;
+  }
+  #btn-fullscreen {
+    display: none !important;
+  }
+  .header__right {
+    gap: var(--space-sm) !important;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+  .page-header button,
+  .page-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Auth responsive container */
+@media (max-width: 480px) {
+  .auth-container {
+    padding: var(--space-md) !important;
+  }
+  .auth-container .glass-panel {
+    padding: var(--space-lg) !important;
+    max-width: 100% !important;
+  }
 }

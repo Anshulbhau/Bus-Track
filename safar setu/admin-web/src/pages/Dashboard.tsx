@@ -183,6 +183,19 @@ export default function Dashboard() {
                         <strong>{trip.vehicles?.vehicle_number ?? 'Unknown Bus'}</strong>{' '}
                         {trip.status === 'running' ? 'is on' : trip.status === 'completed' ? 'completed' : 'is scheduled for'}{' '}
                         <strong>{trip.routes?.route_name ?? 'Unknown Route'}</strong>
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: trip.direction === 'backward' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                          color: trip.direction === 'backward' ? '#a855f7' : '#3b82f6',
+                          display: 'inline-block',
+                          marginLeft: '6px',
+                          verticalAlign: 'middle',
+                        }}>
+                          {trip.direction === 'backward' ? 'Backward' : 'Onward'}
+                        </span>
                         {trip.profiles?.name ? ` — Driver: ${trip.profiles.name}` : ''}
                       </div>
                       <div className="activity-item__time">
@@ -216,6 +229,7 @@ export default function Dashboard() {
               <tr>
                 <th>Bus</th>
                 <th>Route</th>
+                <th>Direction</th>
                 <th>Driver</th>
                 <th>Started</th>
                 <th>Status</th>
@@ -223,12 +237,23 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {trips.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No trips found</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No trips found</td></tr>
               ) : (
                 trips.map((trip) => (
                   <tr key={trip.id}>
                     <td>{trip.vehicles?.vehicle_number ?? '—'}</td>
                     <td>{trip.routes?.route_name ?? '—'}</td>
+                    <td>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '3px 10px', borderRadius: 12, fontSize: 'var(--font-size-xs)',
+                        fontWeight: 600,
+                        background: trip.direction === 'backward' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                        color: trip.direction === 'backward' ? '#a855f7' : '#3b82f6',
+                      }}>
+                        {trip.direction === 'backward' ? '↩ Backward' : '→ Onward'}
+                      </span>
+                    </td>
                     <td>{trip.profiles?.name ?? '—'}</td>
                     <td>{new Date(trip.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</td>
                     <td>

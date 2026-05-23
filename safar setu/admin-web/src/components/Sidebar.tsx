@@ -10,12 +10,18 @@ const navItems = [
   { label: 'Drivers',   path: '/drivers',   icon: '👤' },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void
+  isOpen?: boolean
+}
+
+export default function Sidebar({ onClose, isOpen }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    onClose?.()
     navigate('/auth')
   }
 
@@ -37,6 +43,7 @@ export default function Sidebar() {
           <NavLink
             key={item.path}
             to={item.path}
+            onClick={onClose}
             className={`sidebar__link ${
               location.pathname === item.path ? 'sidebar__link--active' : ''
             }`}
@@ -51,6 +58,7 @@ export default function Sidebar() {
         </div>
         <NavLink
           to="/settings"
+          onClick={onClose}
           className={`sidebar__link ${location.pathname === '/settings' ? 'sidebar__link--active' : ''}`}
         >
           <span className="sidebar__link-icon">⚙️</span>
@@ -58,6 +66,7 @@ export default function Sidebar() {
         </NavLink>
         <NavLink
           to="/audit-logs"
+          onClick={onClose}
           className={`sidebar__link ${location.pathname === '/audit-logs' ? 'sidebar__link--active' : ''}`}
         >
           <span className="sidebar__link-icon">📋</span>

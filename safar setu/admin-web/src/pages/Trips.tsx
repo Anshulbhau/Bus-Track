@@ -67,10 +67,11 @@ export default function Trips() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled', direction: 'onward' })
+  const [form, setForm] = useState({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled', direction: '' })
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [directionFilter, setDirectionFilter] = useState<string>('all')
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type })
@@ -79,7 +80,7 @@ export default function Trips() {
 
   function openAdd() {
     setEditId(null)
-    setForm({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled', direction: 'onward' })
+    setForm({ vehicle_id: '', route_id: '', driver_id: '', start_time: '', status: 'scheduled', direction: '' })
     setModalOpen(true)
   }
 
@@ -91,7 +92,7 @@ export default function Trips() {
       driver_id: trip.driver_id,
       start_time: trip.start_time?.slice(0, 16) ?? '',
       status: trip.status,
-      direction: trip.direction || 'onward',
+      direction: trip.direction || '',
     })
     setModalOpen(true)
   }
@@ -104,6 +105,12 @@ export default function Trips() {
     const validation = await validateTrip(form.vehicle_id, form.status, form.start_time, editId)
     if (!validation.isValid) {
       showToast(validation.message || 'Validation failed', 'error')
+      setSaving(false)
+      return
+    }
+
+    if (!form.direction) {
+      showToast('Please select a trip direction', 'error')
       setSaving(false)
       return
     }
@@ -180,7 +187,7 @@ export default function Trips() {
     }
 
     // Create a new return trip with reversed direction
-    const newDirection = (trip.direction || 'onward') === 'onward' ? 'return' : 'onward'
+    const newDirection = (trip.direction || 'onward') === 'onward' ? 'backward' : 'onward'
     const { error } = await insertTrip({
       vehicle_id: trip.vehicle_id,
       route_id: trip.route_id,
@@ -191,14 +198,18 @@ export default function Trips() {
     } as any)
     setSaving(false)
     if (error) showToast(error.message, 'error')
-    else { showToast(`Return journey started! (${newDirection === 'return' ? '↩ Return' : '→ Onward'})`); refetch() }
+    else { showToast(`Return journey started! (${newDirection === 'backward' ? '↩ Backward' : '→ Onward'})`); refetch() }
   }
 
   const running = trips.filter((t) => t.status === 'running').length
   const scheduled = trips.filter((t) => t.status === 'scheduled').length
   const completed = trips.filter((t) => t.status === 'completed').length
 
-  const filtered = statusFilter === 'all' ? trips : trips.filter((t) => t.status === statusFilter)
+  const filtered = trips.filter((t) => {
+    const matchesStatus = statusFilter === 'all' || t.status === statusFilter
+    const matchesDirection = directionFilter === 'all' || t.direction === directionFilter
+    return matchesStatus && matchesDirection
+  })
 
   const runningVehicleIds = new Set(
     trips
@@ -254,7 +265,27 @@ export default function Trips() {
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* Direction Filter Dropdown */}
+            <select
+              value={directionFilter}
+              onChange={(e) => setDirectionFilter(e.target.value)}
+              className="btn btn--ghost"
+              style={{
+                padding: '6px 14px',
+                background: 'var(--color-bg-glass)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="all">All Directions</option>
+              <option value="onward">Onward</option>
+              <option value="backward">Backward</option>
+            </select>
+
             {(['all', 'running', 'scheduled', 'completed'] as const).map((s) => (
               <button
                 key={s}
@@ -315,10 +346,10 @@ export default function Trips() {
                       display: 'inline-flex', alignItems: 'center', gap: 4,
                       padding: '3px 10px', borderRadius: 12, fontSize: 'var(--font-size-xs)',
                       fontWeight: 600,
-                      background: (trip as any).direction === 'return' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                      color: (trip as any).direction === 'return' ? '#ef4444' : '#22c55e',
+                      background: trip.direction === 'backward' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: trip.direction === 'backward' ? '#a855f7' : '#3b82f6',
                     }}>
-                      {(trip as any).direction === 'return' ? '↩ Return' : '→ Onward'}
+                      {trip.direction === 'backward' ? '↩ Backward' : '→ Onward'}
                     </span>
                   </td>
                   <td>{new Date(trip.start_time).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</td>
@@ -385,6 +416,14 @@ export default function Trips() {
           </div>
           <div className="form-row">
             <div className="form-group">
+              <label htmlFor="trip_direction">Trip Direction</label>
+              <select id="trip_direction" required value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
+                <option value="">— Select Direction —</option>
+                <option value="onward">Onward</option>
+                <option value="backward">Backward</option>
+              </select>
+            </div>
+            <div className="form-group">
               <label htmlFor="trip_driver">Driver</label>
               <select id="trip_driver" required value={form.driver_id} onChange={(e) => setForm({ ...form, driver_id: e.target.value })}>
                 <option value="">— Select Driver —</option>
@@ -393,6 +432,8 @@ export default function Trips() {
                 ))}
               </select>
             </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label htmlFor="trip_status">Status</label>
               <select id="trip_status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
@@ -401,10 +442,10 @@ export default function Trips() {
                 <option value="completed">Completed</option>
               </select>
             </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor="trip_start">Start Time</label>
-            <input id="trip_start" type="datetime-local" required value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+            <div className="form-group">
+              <label htmlFor="trip_start">Start Time</label>
+              <input id="trip_start" type="datetime-local" required value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+            </div>
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn--ghost" onClick={() => setModalOpen(false)}>Cancel</button>
