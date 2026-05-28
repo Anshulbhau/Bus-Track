@@ -1377,3 +1377,380 @@ ul, ol {
     max-width: 100% !important;
   }
 }
+
+/* ── Driver Ratings & Reviews System Styles ── */
+
+/* Unsafe Row Highlights */
+.data-table tbody tr.row--unsafe {
+  background: rgba(239, 68, 68, 0.05) !important;
+  border-left: 3px solid var(--color-danger);
+}
+
+.data-table tbody tr.row--unsafe:hover {
+  background: rgba(239, 68, 68, 0.09) !important;
+}
+
+.row-warning-text {
+  color: var(--color-danger) !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Safety Badges with premium futuristic neon gradients & glows */
+.safety-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.safety-badge--safe {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(5, 150, 105, 0.1) 100%);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.safety-badge--good {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(5, 150, 105, 0.08) 100%);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+}
+
+.safety-badge--rash {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22) 0%, rgba(185, 28, 28, 0.1) 100%);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+}
+
+.safety-badge--insufficient {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.14) 0%, rgba(100, 116, 139, 0.08) 100%);
+  color: #c084fc;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.08);
+}
+
+/* Advanced Review Cards in Modal with rating-colored borders and glows */
+.reviews-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.review-card {
+  background: rgba(17, 24, 39, 0.4);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  transition: all var(--transition-normal);
+}
+
+.review-card:hover {
+  transform: translateY(-2px);
+}
+
+/* 4-5 stars: Green border and subtle glow */
+.review-card--excellent {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.04);
+}
+.review-card--excellent:hover {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12) !important;
+}
+
+/* 3 stars: Yellow border and subtle glow */
+.review-card--neutral {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.03);
+}
+.review-card--neutral:hover {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.08) !important;
+}
+
+/* 1-2 stars: Red border and subtle glow */
+.review-card--abysmal {
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.04);
+}
+.review-card--abysmal:hover {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.12) !important;
+}
+
+/* Flagged: Red/orange border and soft warning glow */
+.review-card--flagged {
+  border-color: rgba(249, 115, 22, 0.45) !important;
+  background: rgba(249, 115, 22, 0.02) !important;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.05);
+}
+.review-card--flagged:hover {
+  border-color: rgba(249, 115, 22, 0.7) !important;
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15) !important;
+}
+
+.review-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-xs);
+}
+
+.review-card__user {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-card__date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.review-card__rating {
+  color: #fbbf24;
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.review-card__text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-md);
+  font-style: italic;
+}
+
+.review-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.review-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-card__tag {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-secondary);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  letter-spacing: 0.01em;
+}
+
+.review-card__tag--warning {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.review-card__tag--success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.review-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Compact Neon Analytics Grid for Modal Header */
+.analytics-grid--modal {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+@media (min-width: 580px) {
+  .analytics-grid--modal {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.analytics-card--compact {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.analytics-card--compact::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+.analytics-card--compact-success::before {
+  background: var(--color-success);
+}
+.analytics-card--compact-danger::before {
+  background: var(--color-danger);
+}
+.analytics-card--compact-warning::before {
+  background: var(--color-warning);
+}
+.analytics-card--compact-info::before {
+  background: var(--color-info);
+}
+
+.analytics-card__val {
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+
+.analytics-card__lbl {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Slider Controls */
+.filter-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.filter-slider label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.filter-slider input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.filter-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent-glow);
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.filter-slider input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.pagination__info {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.pagination__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Loading Skeletons */
+.skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.skeleton-text {
+  height: 14px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  height: 18px;
+  width: 120px;
+  margin-bottom: 12px;
+}
+
+.skeleton-badge {
+  height: 22px;
+  width: 80px;
+  border-radius: 20px;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Dropdown Select Legibility in Dark Mode ── */
+select {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+select option {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+
+

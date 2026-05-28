@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Vehicle, Route, Trip, Profile, Stop } from '../types/database'
+import type { Vehicle, Route, Trip, Profile, Stop, DriverRatingStats } from '../types/database'
+import { getDriversWithRatings } from '../lib/api'
 
 /* ── Generic fetch hook ── */
 function useQuery<T>(
@@ -68,6 +69,14 @@ export function useDrivers() {
       .order('name', { ascending: true })
   )
 }
+
+/* ── Drivers with ratings statistics ── */
+export function useDriversWithRatings() {
+  return useQuery<Profile & { driver_rating_stats: DriverRatingStats | null }>(
+    getDriversWithRatings
+  )
+}
+
 
 /* ── Stops ── */
 export function useStops() {

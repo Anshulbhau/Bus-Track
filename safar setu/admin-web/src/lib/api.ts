@@ -268,3 +268,54 @@ export async function recalculateAllRouteDistances() {
     throw err
   }
 }
+
+// ── Driver Ratings & Reviews ──
+
+/**
+ * Fetches all driver profiles left-joined with their rating statistics.
+ */
+export async function getDriversWithRatings() {
+  return supabase
+    .from('profiles')
+    .select('*, driver_rating_stats(*)')
+    .eq('role', 'driver')
+    .order('name', { ascending: true })
+}
+
+/**
+ * Fetches reviews for a given driver, including the passenger/reviewer details, with pagination.
+ */
+export async function getDriverReviews(driverId: string, limit = 10, offset = 0) {
+  return supabase
+    .from('driver_reviews')
+    .select('*, reviewer:profiles!driver_reviews_user_id_fkey(*)', { count: 'exact' })
+    .eq('driver_id', driverId)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+}
+
+/**
+ * Flags a specific review as abusive/spam.
+ */
+export async function flagReview(reviewId: string) {
+  return supabase
+    .from('driver_reviews')
+    .update({ is_flagged: true })
+    .eq('id', reviewId)
+    .select()
+    .single()
+}
+
+/**
+ * Soft deletes a review (hides it from standard views).
+ */
+export async function deleteReview(reviewId: string) {
+  return supabase
+    .from('driver_reviews')
+    .update({ is_deleted: true })
+    .eq('id', reviewId)
+    .select()
+    .single()
+}
+

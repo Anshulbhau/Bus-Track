@@ -6,6 +6,45 @@ CREATE TABLE public.admin_users (
   CONSTRAINT admin_users_pkey PRIMARY KEY (user_id),
   CONSTRAINT admin_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.driver_rating_stats (
+  driver_id uuid NOT NULL,
+  average_rating numeric NOT NULL DEFAULT 0,
+  total_reviews integer NOT NULL DEFAULT 0,
+  smooth_driving_count integer NOT NULL DEFAULT 0,
+  rash_driving_count integer NOT NULL DEFAULT 0,
+  sudden_braking_count integer NOT NULL DEFAULT 0,
+  overspeeding_count integer NOT NULL DEFAULT 0,
+  polite_behavior_count integer NOT NULL DEFAULT 0,
+  clean_bus_count integer NOT NULL DEFAULT 0,
+  safety_score numeric NOT NULL DEFAULT 100,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT driver_rating_stats_pkey PRIMARY KEY (driver_id),
+  CONSTRAINT driver_rating_stats_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.driver_reviews (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  driver_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  trip_id uuid NOT NULL,
+  vehicle_id uuid NOT NULL,
+  rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  review_text text,
+  smooth_driving boolean NOT NULL DEFAULT false,
+  rash_driving boolean NOT NULL DEFAULT false,
+  sudden_braking boolean NOT NULL DEFAULT false,
+  overspeeding boolean NOT NULL DEFAULT false,
+  polite_behavior boolean NOT NULL DEFAULT false,
+  clean_bus boolean NOT NULL DEFAULT false,
+  is_deleted boolean NOT NULL DEFAULT false,
+  is_flagged boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT driver_reviews_pkey PRIMARY KEY (id),
+  CONSTRAINT driver_reviews_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id),
+  CONSTRAINT driver_reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT driver_reviews_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id),
+  CONSTRAINT driver_reviews_vehicle_id_fkey FOREIGN KEY (vehicle_id) REFERENCES public.vehicles(id)
+);
 CREATE TABLE public.profiles (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text,
@@ -54,7 +93,7 @@ CREATE TABLE public.trips (
   end_time timestamp with time zone,
   status USER-DEFINED NOT NULL DEFAULT 'scheduled'::trip_status,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  direction text NOT NULL DEFAULT 'onward'::text CHECK (direction = ANY (ARRAY['onward'::text, 'return'::text])),
+  direction text NOT NULL DEFAULT 'onward'::text CHECK (direction = ANY (ARRAY['onward'::text, 'backward'::text])),
   CONSTRAINT trips_pkey PRIMARY KEY (id),
   CONSTRAINT trips_bus_id_fkey FOREIGN KEY (vehicle_id) REFERENCES public.vehicles(id),
   CONSTRAINT trips_route_id_fkey FOREIGN KEY (route_id) REFERENCES public.routes(id),
