@@ -101,7 +101,7 @@ sequenceDiagram
     deactivate DB
     
     Admin->>Client: Save Route Stops Sequence
-    Client->>OSRM: GET /route/v1/driving/{stop1_coords};{stop2_coords};...
+    Client->>OSRM: GET /route/v1/driving/{stop1_coords},{stop2_coords},...
     activate OSRM
     OSRM-->>Client: Returns Legs Data (precise road distance & segment duration)
     deactivate OSRM
