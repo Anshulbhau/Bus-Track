@@ -370,17 +370,7 @@ Safar Setu is ready to be hosted as a Single Page Application.
 4. Configure your environment variables on Vercel.
 5. Click **Deploy**. Vercel will build the React-TypeScript bundle and launch it on your production domain.
 
----
 
-## 📸 Screenshots Section
-
-| Dashboard & Real-Time Fleet Overview | Interactive Route Stop Mapper (OSRM) |
-| :---: | :---: |
-| ![Dashboard Placeholder](https://placehold.co/800x450/0b0f1a/ffffff?text=Real-time+Dashboard+Operations+Live+Map) | ![Route Mapper Placeholder](https://placehold.co/800x450/0b0f1a/ffffff?text=OSRM+Interactive+Stop+Configurator) |
-
-| Driver Safety Analytics & Review Portal | Security Settings & Map Configurations |
-| :---: | :---: |
-| ![Driver Performance Stats](https://placehold.co/800x450/0b0f1a/ffffff?text=Passenger+Safety+Ratings+Moderation) | ![Settings Panel](https://placehold.co/800x450/0b0f1a/ffffff?text=Security+Credentials+Map+Center+Controls) |
 
 ---
 
@@ -394,7 +384,6 @@ Safar Setu is ready to be hosted as a Single Page Application.
 
 ## 🔮 Future Enhancements
 
-* **Native Passenger App Integration:** A mobile app built with Flutter or React Native that scans QR codes, displays live ETAs, and handles ticketing.
 * **Geofencing & Divergence Alerts:** Automate alerts when active buses deviate from their snapped OSRM paths.
 * **Predictive ML ETAs:** Leverage historical trip legs data to compute predictive bus arrival times under traffic conditions.
 * **Offline Telemetry Buffer:** LocalStorage-based tracking buffer for drivers to sync GPS updates during network drops.
